@@ -1,0 +1,842 @@
+{
+  "info": {
+    "name": "Acme Builder · Vault-first payments POC",
+    "description": "Requests behind each step of the POC. Numbers match the guide and the app's step log.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 · Quick Start (Stripe Checkout + Forward)",
+      "description": "Cards keep being collected by Stripe Checkout. After the subscription CIT, the card is forwarded to the vault and a network token is provisioned.",
+      "item": [
+        {
+          "name": "0.1 Stripe · Test card on file",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"stripe_pm_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "Stand-in for the card Stripe Checkout saved on the subscription.",
+            "url": "https://api.stripe.com/v1/payment_methods",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "type",
+                  "value": "card"
+                },
+                {
+                  "key": "card[token]",
+                  "value": "tok_visa"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "0.2 Stripe · Forward card to Basis Theory",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"bt_token_id\", JSON.parse(json.response_details.body).id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "Stripe Vault and Forward. Requires Forwarding to be enabled on the Stripe account. Stripe replaces the empty card fields.",
+            "url": "https://api.stripe.com/v1/forwarding/requests",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "payment_method",
+                  "value": "{{stripe_pm_id}}"
+                },
+                {
+                  "key": "url",
+                  "value": "https://api.basistheory.com/connections/stripe-forward/tokenize"
+                },
+                {
+                  "key": "request[headers][0][name]",
+                  "value": "BT-API-KEY"
+                },
+                {
+                  "key": "request[headers][0][value]",
+                  "value": "{{bt_forward_api_key}}"
+                },
+                {
+                  "key": "request[body]",
+                  "value": "{\"card\":{\"number\":\"\",\"exp_month\":\"\",\"exp_year\":\"\",\"cvc\":\"\",\"name\":\"\"},\"metadata\":{\"metadata\":{\"stripe_pm\":\"{{stripe_pm_id}}\",\"source\":\"quick-start\"}}}"
+                },
+                {
+                  "key": "replacements[0]",
+                  "value": "card_number"
+                },
+                {
+                  "key": "replacements[1]",
+                  "value": "card_expiry"
+                },
+                {
+                  "key": "replacements[2]",
+                  "value": "card_cvc"
+                },
+                {
+                  "key": "replacements[3]",
+                  "value": "cardholder_name"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "0.3 BT · Stripe-forward endpoint (what Stripe delivers)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"bt_token_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_forward_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "The body Stripe delivers to BT in 0.2, sent by hand to try the BT side on its own.",
+            "url": "{{bt_api_url}}/connections/stripe-forward/tokenize",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card\": {\n    \"number\": \"4000000000000093\",\n    \"exp_month\": \"12\",\n    \"exp_year\": \"2030\",\n    \"cvc\": \"\",\n    \"name\": \"Jane Doe\"\n  },\n  \"metadata\": {\n    \"metadata\": {\n      \"stripe_pm\": \"{{stripe_pm_id}}\",\n      \"source\": \"quick-start\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "0.4 BT · Provision network token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"bt_network_token_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Sandbox only provisions its own test PANs; see the NT testing docs.",
+            "url": "{{bt_api_url}}/network-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token_id\": \"{{bt_token_id}}\",\n  \"cardholder_info\": {\n    \"name\": \"Jane Doe\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "0.5 BT · Reveal network token (store it locally)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              }
+            ],
+            "description": "Needs network-token:reveal. After this, MITs use the stored NT without calling Basis Theory.",
+            "url": "{{bt_api_url}}/network-tokens/{{bt_network_token_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1 · Phase 1(a) (Elements writes to Stripe + encrypts)",
+      "description": "Elements sends the card from its iframe straight to Stripe and encrypts a copy locally (JWE). The backend tokenizes the JWE now, or later if Basis Theory is down.",
+      "item": [
+        {
+          "name": "1.1 BT · Status (health check)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Public. The backend checks us.tokens before tokenizing; if false, JWE blobs are queued.",
+            "url": "{{bt_api_url}}/status?region=us"
+          }
+        },
+        {
+          "name": "1.2 BT · Create client encryption key (startup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"bt_key_id\", json.key_id); } catch (e) {}",
+                  "try { pm.environment.set(\"bt_public_key_pem\", json.public_key_pem); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Runs once at server start. The public key is only returned here; cache it for the checkout page.",
+            "url": "{{bt_api_url}}/keys",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "1.3 Stripe · Create PaymentMethod with card data (what Elements sends)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"stripe_pm_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_publishable_key}}"
+              }
+            ],
+            "description": "Elements' bt.client.post sends this from the BT iframe with the Stripe publishable key. Needs raw card data APIs enabled.",
+            "url": "https://api.stripe.com/v1/payment_methods",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "type",
+                  "value": "card"
+                },
+                {
+                  "key": "card[number]",
+                  "value": "4000000000000093"
+                },
+                {
+                  "key": "card[exp_month]",
+                  "value": "12"
+                },
+                {
+                  "key": "card[exp_year]",
+                  "value": "2030"
+                },
+                {
+                  "key": "card[cvc]",
+                  "value": "123"
+                },
+                {
+                  "key": "billing_details[name]",
+                  "value": "Jane Doe"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.4 BT · Create token from JWE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"bt_token_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Paste a JWE produced by bt.tokens.encrypt (or tests/fixtures makeJwe) into the jwe variable.",
+            "url": "{{bt_api_url}}/tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"card\",\n  \"encrypted\": \"{{jwe}}\",\n  \"metadata\": {\n    \"stripe_pm\": \"{{stripe_pm_id}}\",\n    \"source\": \"phase-1\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "1.5 Stripe · Charge the saved pm_ (backend, secret key)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"nti_pan\", json.latest_charge.payment_method_details.card.network_transaction_id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "The backend, not Elements, creates and confirms the intent with the pm_ from 1.3. The app does this through the subscription's first invoice; this is the bare equivalent. requires_action → Stripe.js handleNextAction (3DS).",
+            "url": "https://api.stripe.com/v1/payment_intents",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "amount",
+                  "value": "5000"
+                },
+                {
+                  "key": "currency",
+                  "value": "usd"
+                },
+                {
+                  "key": "payment_method",
+                  "value": "{{stripe_pm_id}}"
+                },
+                {
+                  "key": "confirm",
+                  "value": "true"
+                },
+                {
+                  "key": "setup_future_usage",
+                  "value": "off_session"
+                },
+                {
+                  "key": "return_url",
+                  "value": "http://localhost:3000/phase-1/checkout"
+                },
+                {
+                  "key": "expand[]",
+                  "value": "latest_charge"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.6 BT Proxy → Stripe · Create PaymentMethod from a token (proxy mode)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"stripe_pm_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "BT-PROXY-URL",
+                "value": "https://api.stripe.com/v1/payment_methods"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "Card write mode 'proxy': Elements tokenized the card (bt_token_id); the backend creates the Stripe pm_ through the BT Proxy. Basis Theory fills in the card data. Then charge it as in 1.5.",
+            "url": "{{bt_api_url}}/proxy",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "type",
+                  "value": "card"
+                },
+                {
+                  "key": "card[number]",
+                  "value": "{{ token: {{bt_token_id}} | json: \"$.data.number\" }}"
+                },
+                {
+                  "key": "card[exp_month]",
+                  "value": "{{ token: {{bt_token_id}} | json: \"$.data\" | card_exp: \"MM\" }}"
+                },
+                {
+                  "key": "card[exp_year]",
+                  "value": "{{ token: {{bt_token_id}} | json: \"$.data\" | card_exp: \"YYYY\" }}"
+                },
+                {
+                  "key": "billing_details[name]",
+                  "value": "Jane Doe"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · Renewals",
+      "description": "Billing issues the invoice; the merchant charges it and marks it paid out of band. Primary: Stripe with NT + NTI (no BT call). Failover: Checkout.com via the BT Proxy.",
+      "item": [
+        {
+          "name": "2.1 BT · Cryptogram (first NT charge only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"cryptogram\", json.cryptogram); } catch (e) {}",
+                  "try { pm.environment.set(\"eci\", json.eci); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Starts the NT transaction chain. Later MITs reference that chain's NTI.",
+            "url": "{{bt_api_url}}/network-tokens/{{bt_network_token_id}}/cryptogram",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2.2 Stripe · Charge NT + cryptogram (chain start)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"nti_nt\", json.latest_charge.payment_method_details.card.network_transaction_id); } catch (e) {}",
+                  "try { pm.environment.set(\"stripe_payment_intent_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "Network token passthrough must be enabled on the Stripe account. Sandbox NTs are simulated and may be rejected.",
+            "url": "https://api.stripe.com/v1/payment_intents",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "amount",
+                  "value": "5000"
+                },
+                {
+                  "key": "currency",
+                  "value": "usd"
+                },
+                {
+                  "key": "confirm",
+                  "value": "true"
+                },
+                {
+                  "key": "off_session",
+                  "value": "true"
+                },
+                {
+                  "key": "payment_method_data[type]",
+                  "value": "card"
+                },
+                {
+                  "key": "payment_method_data[card][network_token][number]",
+                  "value": "{{nt_number}}"
+                },
+                {
+                  "key": "payment_method_data[card][network_token][exp_month]",
+                  "value": "{{nt_exp_month}}"
+                },
+                {
+                  "key": "payment_method_data[card][network_token][exp_year]",
+                  "value": "{{nt_exp_year}}"
+                },
+                {
+                  "key": "payment_method_options[card][network_token][cryptogram]",
+                  "value": "{{cryptogram}}"
+                },
+                {
+                  "key": "payment_method_options[card][network_token][electronic_commerce_indicator]",
+                  "value": "{{eci}}"
+                },
+                {
+                  "key": "customer",
+                  "value": "{{stripe_customer_id}}"
+                },
+                {
+                  "key": "expand[]",
+                  "value": "latest_charge"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.3 Stripe · MIT with NT + NTI",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"stripe_payment_intent_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "Recurring charge referencing the NT chain. No Basis Theory call.",
+            "url": "https://api.stripe.com/v1/payment_intents",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "amount",
+                  "value": "5000"
+                },
+                {
+                  "key": "currency",
+                  "value": "usd"
+                },
+                {
+                  "key": "confirm",
+                  "value": "true"
+                },
+                {
+                  "key": "off_session",
+                  "value": "true"
+                },
+                {
+                  "key": "payment_method_data[type]",
+                  "value": "card"
+                },
+                {
+                  "key": "payment_method_data[card][network_token][number]",
+                  "value": "{{nt_number}}"
+                },
+                {
+                  "key": "payment_method_data[card][network_token][exp_month]",
+                  "value": "{{nt_exp_month}}"
+                },
+                {
+                  "key": "payment_method_data[card][network_token][exp_year]",
+                  "value": "{{nt_exp_year}}"
+                },
+                {
+                  "key": "payment_method_options[card][mit_exemption][network_transaction_id]",
+                  "value": "{{nti_nt}}"
+                },
+                {
+                  "key": "customer",
+                  "value": "{{stripe_customer_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.4 Stripe · Attach the payment to the invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "A Stripe charge settles the invoice as a normal Stripe payment. Same customer and currency as the invoice; subscription uses collection_method=send_invoice.",
+            "url": "https://api.stripe.com/v1/invoices/{{stripe_invoice_id}}/attach_payment",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "payment_intent",
+                  "value": "{{stripe_payment_intent_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.5 BT Proxy → Checkout.com · MIT failover",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "BT-PROXY-URL",
+                "value": "{{cko_api_url}}/payments"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cko_secret_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "When Stripe fails with a processor error or outage. The PAN is inserted by BT; only the token id and NTI leave the backend.",
+            "url": "{{bt_api_url}}/proxy",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": {\n    \"type\": \"card\",\n    \"number\": \"{{ token: {{bt_token_id}} | json: \\\"$.data.number\\\" }}\",\n    \"expiry_month\": \"{{ token: {{bt_token_id}} | json: \\\"$.data\\\" | card_exp: \\\"MM\\\" }}\",\n    \"expiry_year\": \"{{ token: {{bt_token_id}} | json: \\\"$.data\\\" | card_exp: \\\"YYYY\\\" }}\",\n    \"stored\": true\n  },\n  \"amount\": 5000,\n  \"currency\": \"USD\",\n  \"processing_channel_id\": \"{{cko_processing_channel_id}}\",\n  \"payment_type\": \"Recurring\",\n  \"merchant_initiated\": true,\n  \"previous_payment_id\": \"{{nti_pan}}\",\n  \"reference\": \"{{stripe_invoice_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2.6 Stripe · Mark invoice paid out of band",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{stripe_secret_key}}"
+              }
+            ],
+            "description": "Only after Checkout.com took the payment (2.5). Billing stays the system of record.",
+            "url": "https://api.stripe.com/v1/invoices/{{stripe_invoice_id}}/pay",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "paid_out_of_band",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 · Migration (one row of the dry run)",
+      "description": "What scripts/migration-dry-run.ts does per row of the Stripe export.",
+      "item": [
+        {
+          "name": "3.1 BT · Tokenize an exported card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"bt_token_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Row from samples/stripe-export.sample.csv.",
+            "url": "{{bt_api_url}}/tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"card\",\n  \"data\": {\n    \"number\": \"4000000000000002\",\n    \"expiration_month\": 12,\n    \"expiration_year\": 2030\n  },\n  \"metadata\": {\n    \"stripe_customer\": \"cus_T1aSampleA001\",\n    \"stripe_card\": \"pm_1SampleCardA001\",\n    \"source\": \"migration\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "3.2 BT · Backfill network token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "try { pm.environment.set(\"bt_network_token_id\", json.id); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "BT-API-KEY",
+                "value": "{{bt_private_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Same call as 0.4, for an imported card.",
+            "url": "{{bt_api_url}}/network-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token_id\": \"{{bt_token_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

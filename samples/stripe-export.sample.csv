@@ -1,0 +1,11 @@
+description,name,email,id,card.address_city,card.address_country,card.address_line1,card.address_line2,card.address_state,card.address_zip,card.exp_month,card.exp_year,card.id,card.name,card.number,default_source,card.transaction_ids,card.transaction_link_id
+ws_0001 Moonshot Labs,Ana Souza,ana@example.com,cus_T1aSampleA001,São Paulo,BR,Av. Paulista 1000,,SP,01310-100,12,2030,pm_1SampleCardA001,Ana Souza,4000000000000002,pm_1SampleCardA001,483298123456789,
+ws_0002 Pixel Forge,Ben Carter,ben@example.com,cus_T1aSampleB002,Austin,US,500 Congress Ave,Suite 2,TX,78701,08,2029,pm_1SampleCardB002,Ben Carter,5100000000000008,pm_1SampleCardB002,MCC0123456789,
+ws_0003 Nordlicht,Clara Weber,clara@example.com,cus_T1aSampleC003,Berlin,DE,Unter den Linden 5,,BE,10117,03,2031,pm_1SampleCardC003,Clara Weber,370000000000002,pm_1SampleCardC003,000123456789012,
+ws_0004 Tiny Shop,Diego Ruiz,diego@example.com,cus_T1aSampleD004,Mexico City,MX,Reforma 222,,CDMX,06600,11,2028,pm_1SampleCardD004,Diego Ruiz,6011000000000004,pm_1SampleCardD004,DSC9876543210,
+ws_0005 Studio Nine,Emma Lee,emma@example.com,cus_T1aSampleE005,London,GB,10 Downing St,,LND,SW1A 2AA,05,2030,pm_1SampleCardE005,Emma Lee,4539097887163333,pm_1SampleCardE005,483298999888777,
+ws_0005 Studio Nine,Emma Lee,emma@example.com,cus_T1aSampleE005,London,GB,10 Downing St,,LND,SW1A 2AA,09,2029,pm_1SampleCardE006,Emma Lee,4000000000000085,pm_1SampleCardE005,,
+ws_0006 Dev Garden,Felix Nguyen,felix@example.com,cus_T1aSampleF007,Seattle,US,400 Pine St,,WA,98101,02,2027,pm_1SampleCardF007,Felix Nguyen,4012888888881881,pm_1SampleCardF007,483298555444333,
+ws_0007 Bright Apps,Gina Rossi,gina@example.com,cus_T1aSampleG008,Rio de Janeiro,BR,Rua das Laranjeiras 10,,RJ,22240-000,10,2032,pm_1SampleCardG008,Gina Rossi,5555555555554444,pm_1SampleCardG008,MCC5554443332,
+ws_0008 Quick Draft,Hugo Martin,hugo@example.com,cus_T1aSampleH009,Lyon,FR,1 Place Bellecour,,ARA,69002,07,2030,pm_1SampleCardH009,Hugo Martin,4242424242424242,pm_1SampleCardH009,483298000111222,
+ws_0009 Link Only,Iris Kim,iris@example.com,cus_T1aSampleI010,Toronto,CA,1 Yonge St,,ON,M5E 1E5,,,pm_1SampleLinkI010,Iris Kim,,pm_1SampleLinkI010,,
